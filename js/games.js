@@ -87,13 +87,21 @@ window.App.games = (function () {
     return window.App.gemini.generateJSON(prompt);
   }
 
-  /** Sınıf seviyesi etiketi (varsa). */
+  /** Sınıf seviyesi etiketi (varsa). config.GRADES bir nesnedir: {ilkokul:"İlkokul",...}. */
   function gradeLabel(grade) {
-    var grades = (window.App && window.App.config && window.App.config.GRADES) || [];
-    for (var i = 0; i < grades.length; i++) {
-      if (String(grades[i].value) === String(grade)) return grades[i].label;
+    if (!grade) return "";
+    var grades = (window.App && window.App.config && window.App.config.GRADES) || {};
+    // Nesne biçimi (sözleşme): {ilkokul:"İlkokul", ...}
+    if (grades && typeof grades === "object" && !Array.isArray(grades) && grades[grade]) {
+      return grades[grade];
     }
-    return grade ? grade + ". Sınıf" : "";
+    // Dizi biçimine de tolerans göster: [{value,label}]
+    if (Array.isArray(grades)) {
+      for (var i = 0; i < grades.length; i++) {
+        if (grades[i] && String(grades[i].value) === String(grade)) return grades[i].label;
+      }
+    }
+    return String(grade);
   }
 
   /** Türkçe büyük harfe çevirme (i → İ). */
