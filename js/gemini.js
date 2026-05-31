@@ -155,11 +155,12 @@ window.App.gemini = {
       const url = `${cfg.API_BASE}/models/${cfg.IMAGE_MODEL}:generateContent?key=${key}`;
 
       // Görsel prompt'unu İngilizce, eğitici, renkli, çocuk dostu illüstrasyona güçlendir
+      // Stil/seviye betimlemesini çağıran taraf (lesson.js) prompt'a koyar.
+      // Burada yalnızca "görselde yazı olmasın" gibi genel bir kural eklenir.
       const gucluPrompt =
-        "Create a colorful, friendly, educational illustration for children. " +
-        "Bright cheerful colors, simple clean cartoon style, no text or letters in the image. " +
-        "Subject: " +
-        prompt;
+        prompt +
+        ". High quality educational illustration. " +
+        "Do not include any text, letters, words or numbers in the image.";
 
       const body = {
         contents: [{ parts: [{ text: gucluPrompt }] }],

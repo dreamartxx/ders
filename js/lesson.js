@@ -1,39 +1,22 @@
-/* Akıllı Ders Platformu — DERS OLUŞTURUCU modülü
- * window.App.lesson.build(topic, grade)
- * Saf (vanilla) JS, derleme adımı yok. Tüm AI/kullanıcı metni güvenli işlenir (XSS yok).
- */
+// lesson.js — Ders oluşturucu modül (sayfa sayfa / slayt deneyimi)
+// Sözleşme: window.App.lesson.build(topic, grade)
+// Bağımlılıklar: App.gemini.generateJSON, App.gemini.generateImage,
+//   App.ui.showLoading/updateLoading/hideLoading/toast, App.config.GRADES
+// Ders tek sayfa değil; ileri/geri gezilen slaytlar halinde sunulur.
+// Görsel ağırlıklı: büyük resim + kısa, vurucu metin.
+// Saf JS, build/import yok.
+
 window.App = window.App || {};
 window.App.lesson = (function () {
   "use strict";
 
-  // --- Kısayollar ---
-  var App = window.App;
+  // -------------------------------------------------------------------------
+  // Yardımcılar
+  // -------------------------------------------------------------------------
 
-  // --- Görsel istekleri için zaman aşımı (ms) ---
-  var IMAGE_TIMEOUT_MS = 12000;
-
-  // --- Yükleme sırasında dönen merak uyandırıcı / esprili mesajlar ---
-  var SPINNER_MESSAGES = [
-    "Beyin hücreleri ısınıyor... 🧠",
-    "Bilgi tohumları ekiliyor... 🌱",
-    "Robotlar ders kitabını karıştırıyor... 🤖",
-    "İlginç örnekler avlanıyor... 🎣",
-    "Renkli kalemler bileniyor... 🖍️",
-    "Merak ışığı yakılıyor... 💡",
-    "Sıkıcı kısımlar çöpe atılıyor... 🗑️",
-    "Eğlenceli bilgiler süzülüyor... ✨",
-    "Ressamlar fırçaları kapıyor... 🎨",
-    "Az kaldı, fırından çıkmak üzere... 🍪"
-  ];
-
-  /**
-   * HTML özel karakterlerini güvenli hale getirir (XSS koruması).
-   * innerHTML içinde kullanılacak her AI/kullanıcı metni bundan geçer.
-   */
-  function escapeHtml(value) {
-    if (value === null || value === undefined) return "";
-    var str = String(value);
-    return str
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return "";
+    return String(s)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -41,279 +24,362 @@ window.App.lesson = (function () {
       .replace(/'/g, "&#39;");
   }
 
-  /**
-   * Sınıf seviyesine göre dil/ton talimatı üretir.
-   */
-  function gradeToneInstruction(grade) {
-    switch (grade) {
+  function ui() {
+    return (window.App && window.App.ui) || {};
+  }
+  function showLoading(msg) {
+    if (typeof ui().showLoading === "function") ui().showLoading(msg);
+  }
+  function updateLoading(text, percent) {
+    if (typeof ui().updateLoading === "function") ui().updateLoading(text, percent);
+  }
+  function hideLoading() {
+    if (typeof ui().hideLoading === "function") ui().hideLoading();
+  }
+  function toast(msg, type) {
+    if (typeof ui().toast === "function") ui().toast(msg, type);
+  }
+
+  // Sınıf kademesini sadeleştir.
+  function gradeKey(grade) {
+    var g = String(grade || "").toLowerCase();
+    if (g.indexOf("ilkokul") !== -1) return "ilkokul";
+    if (g.indexOf("ortaokul") !== -1) return "ortaokul";
+    if (g.indexOf("lise") !== -1) return "lise";
+    var n = parseInt(g.replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(n)) {
+      if (n <= 4) return "ilkokul";
+      if (n <= 8) return "ortaokul";
+      return "lise";
+    }
+    return "ortaokul";
+  }
+
+  function gradeLabel(grade) {
+    var grades = (window.App.config && window.App.config.GRADES) || {};
+    return grades[grade] || grade || "";
+  }
+
+  // -------------------------------------------------------------------------
+  // İstem (prompt) üretimi — AZ YAZI, GÖRSEL AĞIRLIKLI
+  // -------------------------------------------------------------------------
+
+  function textRuleForGrade(key) {
+    switch (key) {
       case "ilkokul":
-        return "Öğrenciler İLKOKUL seviyesinde (yaklaşık 7-10 yaş). " +
-          "Çok basit, kısa cümleler kur. Sıcak, sevimli ve oyuncu bir dil kullan. " +
-          "Somut, günlük hayattan (oyuncak, hayvan, oyun, yemek) örnekler ver. " +
-          "Karmaşık terimlerden kaçın; kullanırsan hemen basitçe açıkla.";
-      case "ortaokul":
-        return "Öğrenciler ORTAOKUL seviyesinde (yaklaşık 11-14 yaş). " +
-          "Açık ve akıcı bir dil kullan, biraz daha derinleş. " +
-          "Günlük hayattan ilgi çekici örnekler ve benzetmeler kullan, neden-sonuç ilişkileri kur.";
+        return "Çok basit, kısa ve neşeli cümleler kur. Günlük hayattan somut örnekler ver.";
       case "lise":
-        return "Öğrenciler LİSE seviyesinde (yaklaşık 15-18 yaş). " +
-          "Daha akademik ama yine de ilgi çekici bir dil kullan. " +
-          "Derinlemesine açıklamalar, gerçek dünya uygulamaları ve eleştirel düşünmeyi teşvik eden örnekler ver.";
+        return "Net, bilgi yoğun ama kısa cümleler kur. Gerçek hayattan/teknolojiden örnek ver.";
       default:
-        return "Öğrencilere uygun, açık ve ilgi çekici bir dil kullan.";
+        return "Açık ve kısa cümleler kur. Günlük hayattan örneklerle destekle.";
     }
   }
 
-  /**
-   * Ders içeriği için Gemini prompt'unu oluşturur (Türkçe, seviyeye göre).
-   */
   function buildPrompt(topic, grade) {
-    var gradeLabel = (App.config.GRADES && App.config.GRADES[grade]) || grade;
-    var tone = gradeToneInstruction(grade);
-
+    var key = gradeKey(grade);
+    var label = gradeLabel(grade);
     return [
-      "Sen çocuklar ve gençler için harika dersler hazırlayan, çok yaratıcı bir öğretmensin.",
-      "Konu: \"" + topic + "\".",
-      "Seviye: " + gradeLabel + ".",
-      tone,
-      "",
-      "Bu konuyu anlatan, merak uyandıran ve görsellerle desteklenebilen bir ders hazırla.",
-      "3 ile 5 arasında bölüm (section) olsun.",
-      "Her bölüm günlük hayattan örnekler ve benzetmeler içersin.",
-      "Her bölüm için İNGİLİZCE bir illüstrasyon tarifi (imagePrompt) yaz; renkli, çocuk dostu, eğitsel bir çizim tarif et.",
-      "intro merak uyandıran kısa bir giriş olsun.",
-      "En az 3 funFacts (şaşırtıcı eğlenceli bilgiler) ve en az 3 keyTerms (anahtar terim + tanım) ekle.",
-      "Tüm metinler (imagePrompt hariç) TÜRKÇE olsun.",
-      "",
-      "SADECE şu JSON şemasında, başka hiçbir açıklama olmadan yanıt ver:",
+      "Sen uzman ve eğlenceli bir öğretmensin.",
+      '"' + topic + '" konusunu ' + label + " seviyesindeki bir öğrenciye GÖRSEL AĞIRLIKLI anlat.",
+      textRuleForGrade(key),
+      "Yanıtı SADECE şu JSON şemasıyla ver:",
       "{",
-      '  "title": "...",',
-      '  "intro": "...",',
-      '  "sections": [ { "heading": "...", "text": "...", "imagePrompt": "..." } ],',
-      '  "funFacts": ["...", "..."],',
-      '  "keyTerms": [ { "term": "...", "definition": "..." } ]',
-      "}"
+      '  "title": "kısa, ilgi çekici ders başlığı",',
+      '  "intro": "tek cümlelik merak uyandıran giriş",',
+      '  "sections": [',
+      "    {",
+      '      "heading": "çok kısa bölüm başlığı (2-4 kelime)",',
+      '      "text": "EN FAZLA 2 KISA cümle. Resmi açıklayan ya da somut örnek veren bir detay.",',
+      '      "imagePrompt": "ingilizce, somut, görselde neyin görüneceğini net anlatan betimleme"',
+      "    }",
+      "  ],",
+      '  "funFacts": ["kısa şaşırtıcı bilgi 1", "kısa şaşırtıcı bilgi 2", "kısa şaşırtıcı bilgi 3"],',
+      '  "keyTerms": [{"term": "kavram", "definition": "tek cümlelik kısa tanım"}]',
+      "}",
+      "Kurallar:",
+      "- 4 ila 6 bölüm üret. Her bölüm tek bir fikre odaklansın.",
+      "- ÇOK ÖNEMLİ: text alanı kısa olsun; uzun paragraf YAZMA. Görsel ana anlatımı taşısın, yazı sadece açıklasın/örnek versin.",
+      "- imagePrompt İngilizce, somut ve görsel olsun; konuyu net göstersin.",
+      "- Tüm Türkçe metinler sınıf seviyesine uygun olsun."
     ].join("\n");
   }
 
-  /**
-   * Bir promise'i belirli süre sonra reject eden zaman aşımı sarmalayıcısı.
-   */
-  function withTimeout(promise, ms) {
-    return new Promise(function (resolve, reject) {
-      var timer = setTimeout(function () {
-        reject(new Error("timeout"));
-      }, ms);
-      Promise.resolve(promise).then(
-        function (val) {
-          clearTimeout(timer);
-          resolve(val);
-        },
-        function (err) {
-          clearTimeout(timer);
-          reject(err);
-        }
-      );
-    });
+  // -------------------------------------------------------------------------
+  // Görsel stili — sınıf seviyesine göre
+  // -------------------------------------------------------------------------
+
+  function imageStyleForGrade(key) {
+    switch (key) {
+      case "ilkokul":
+        return (
+          "Cute adorable cartoon illustration for young children, soft rounded shapes, " +
+          "bright cheerful colors, friendly smiling characters, playful storybook style, kawaii"
+        );
+      case "lise":
+        return (
+          "Photorealistic, highly detailed and realistic educational illustration, " +
+          "professional, cinematic lighting, vivid and engaging, science/textbook quality"
+        );
+      default: // ortaokul
+        return (
+          "Realistic and detailed engaging illustration, semi-realistic educational style, " +
+          "vivid colors, clear and modern, appealing to teenagers"
+        );
+    }
   }
 
-  /**
-   * Bir bölüm için renkli CSS placeholder (emoji + gradyan) HTML'i döndürür.
-   * index'e göre farklı gradyan/emoji seçer.
-   */
-  function placeholderMarkup(index) {
-    var gradients = [
-      "linear-gradient(135deg,#667eea 0%,#764ba2 100%)",
-      "linear-gradient(135deg,#f093fb 0%,#f5576c 100%)",
-      "linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)",
-      "linear-gradient(135deg,#43e97b 0%,#38f9d7 100%)",
-      "linear-gradient(135deg,#fa709a 0%,#fee140 100%)",
-      "linear-gradient(135deg,#30cfd0 0%,#330867 100%)"
-    ];
-    var emojis = ["🔬", "🚀", "🌍", "📚", "🧩", "⭐", "🎨", "🔭"];
-    var g = gradients[index % gradients.length];
-    var e = emojis[index % emojis.length];
+  // Bölüm görseli için tam prompt (stil + içerik).
+  function fullImagePrompt(sec, topic, key) {
+    var base = sec.imagePrompt || sec.heading || topic;
+    return imageStyleForGrade(key) + ". Subject: " + base;
+  }
+
+  // -------------------------------------------------------------------------
+  // Slayt verisi hazırlama
+  // -------------------------------------------------------------------------
+
+  // JSON + görsellerden gezilebilir slayt listesi üret.
+  function buildSlides(data, imageMap, topic, grade) {
+    var slides = [];
+
+    // Kapak slaytı
+    slides.push({
+      type: "cover",
+      title: data.title || topic,
+      intro: data.intro || "",
+      grade: gradeLabel(grade)
+    });
+
+    // Bölüm slaytları
+    if (Array.isArray(data.sections)) {
+      data.sections.forEach(function (sec, i) {
+        slides.push({
+          type: "section",
+          heading: sec.heading || "",
+          text: sec.text || "",
+          image: imageMap[i] || null
+        });
+      });
+    }
+
+    // Şaşırtıcı bilgiler slaytı
+    if (Array.isArray(data.funFacts) && data.funFacts.length) {
+      slides.push({ type: "facts", items: data.funFacts });
+    }
+
+    // Anahtar kavramlar slaytı
+    if (Array.isArray(data.keyTerms) && data.keyTerms.length) {
+      slides.push({ type: "terms", items: data.keyTerms });
+    }
+
+    return slides;
+  }
+
+  // -------------------------------------------------------------------------
+  // Render — tek slayt + gezinme
+  // -------------------------------------------------------------------------
+
+  function placeholder() {
     return (
-      '<div class="lesson-img-placeholder" ' +
-      'style="background:' + g + ';display:flex;align-items:center;justify-content:center;' +
-      'min-height:180px;border-radius:14px;font-size:64px;">' +
-      '<span aria-hidden="true">' + e + "</span></div>"
+      '<div class="slide-img-ph">' +
+      '<span>🖼️</span>' +
+      "<small>Görsel bu sefer üretilemedi</small>" +
+      "</div>"
     );
   }
 
-  /**
-   * Görsel kaynağından <img> ya da placeholder HTML üretir.
-   */
-  function imageMarkup(dataUrl, index, altText) {
-    if (dataUrl) {
-      // dataUrl base64 data: URL'dir; alt metni güvenli işlenir.
+  function renderSlideBody(slide) {
+    if (slide.type === "cover") {
       return (
-        '<img class="lesson-img" src="' + dataUrl + '" ' +
-        'alt="' + escapeHtml(altText) + '" loading="lazy" ' +
-        'style="width:100%;border-radius:14px;display:block;" />'
+        '<div class="slide slide-cover">' +
+        '<div class="slide-cover-badge">📖 ' + escapeHtml(slide.grade) + " Dersi</div>" +
+        '<h1 class="slide-cover-title">' + escapeHtml(slide.title) + "</h1>" +
+        (slide.intro
+          ? '<p class="slide-cover-intro">' + escapeHtml(slide.intro) + "</p>"
+          : "") +
+        '<div class="slide-cover-hint">👉 Başlamak için ilerle</div>' +
+        "</div>"
       );
     }
-    return placeholderMarkup(index);
+
+    if (slide.type === "section") {
+      return (
+        '<div class="slide slide-section">' +
+        (slide.image
+          ? '<div class="slide-img-wrap"><img class="slide-img" src="' +
+            slide.image +
+            '" alt="' + escapeHtml(slide.heading) + '" loading="lazy"></div>'
+          : placeholder()) +
+        '<div class="slide-text-wrap">' +
+        (slide.heading ? '<h2 class="slide-heading">' + escapeHtml(slide.heading) + "</h2>" : "") +
+        (slide.text ? '<p class="slide-text">' + escapeHtml(slide.text) + "</p>" : "") +
+        "</div>" +
+        "</div>"
+      );
+    }
+
+    if (slide.type === "facts") {
+      var facts = slide.items
+        .map(function (f) {
+          return '<li><span class="fact-star">🌟</span>' + escapeHtml(f) + "</li>";
+        })
+        .join("");
+      return (
+        '<div class="slide slide-facts">' +
+        '<h2 class="slide-heading">🤩 Bunları biliyor muydun?</h2>' +
+        '<ul class="slide-facts-list">' + facts + "</ul>" +
+        "</div>"
+      );
+    }
+
+    if (slide.type === "terms") {
+      var terms = slide.items
+        .map(function (t) {
+          return (
+            '<div class="term-card">' +
+            '<div class="term-name">' + escapeHtml(t.term) + "</div>" +
+            '<div class="term-def">' + escapeHtml(t.definition) + "</div>" +
+            "</div>"
+          );
+        })
+        .join("");
+      return (
+        '<div class="slide slide-terms">' +
+        '<h2 class="slide-heading">📚 Anahtar Kavramlar</h2>' +
+        '<div class="terms-grid">' + terms + "</div>" +
+        "</div>"
+      );
+    }
+
+    return "";
   }
 
-  /**
-   * Tüm ders verisini #lesson-content içine kartlar halinde render eder.
-   * images: section index'ine karşılık gelen data URL veya null dizisi.
-   */
-  function render(container, data, grade) {
-    var gradeLabel = (App.config.GRADES && App.config.GRADES[grade]) || grade;
-    var sections = Array.isArray(data.sections) ? data.sections : [];
-    var funFacts = Array.isArray(data.funFacts) ? data.funFacts : [];
-    var keyTerms = Array.isArray(data.keyTerms) ? data.keyTerms : [];
-    var images = Array.isArray(data._images) ? data._images : [];
+  // Tüm deck'i (slayt gösterisi) çiz ve gezinmeyi bağla.
+  function renderDeck(container, slides) {
+    var current = 0;
+    var total = slides.length;
 
-    var html = "";
+    container.innerHTML =
+      '<div class="deck">' +
+      '<div class="deck-progress"><div class="deck-progress-fill"></div></div>' +
+      '<div class="deck-stage"></div>' +
+      '<div class="deck-nav">' +
+      '<button type="button" class="deck-btn deck-prev">← Geri</button>' +
+      '<div class="deck-dots"></div>' +
+      '<button type="button" class="deck-btn deck-next btn-primary">İleri →</button>' +
+      "</div>" +
+      "</div>";
 
-    // --- Başlık kartı + sınıf rozeti + giriş ---
-    html += '<div class="lesson-card lesson-header-card">';
-    html += '<div class="lesson-title-row">';
-    html += "<h2 class=\"lesson-title\">" + escapeHtml(data.title || "Ders") + "</h2>";
-    html += '<span class="grade-badge">' + escapeHtml(gradeLabel) + "</span>";
-    html += "</div>";
-    if (data.intro) {
-      html += '<p class="lesson-intro">' + escapeHtml(data.intro) + "</p>";
+    var stage = container.querySelector(".deck-stage");
+    var fill = container.querySelector(".deck-progress-fill");
+    var prevBtn = container.querySelector(".deck-prev");
+    var nextBtn = container.querySelector(".deck-next");
+    var dotsWrap = container.querySelector(".deck-dots");
+
+    // Noktalar
+    var dots = [];
+    for (var i = 0; i < total; i++) {
+      var d = document.createElement("button");
+      d.type = "button";
+      d.className = "deck-dot";
+      d.setAttribute("aria-label", (i + 1) + ". sayfa");
+      (function (idx) {
+        d.addEventListener("click", function () { go(idx); });
+      })(i);
+      dotsWrap.appendChild(d);
+      dots.push(d);
     }
-    html += "</div>";
 
-    // --- Bölümler (görsel + metin) ---
-    sections.forEach(function (section, i) {
-      var img = imageMarkup(images[i], i, section.heading || "Bölüm görseli");
-      html += '<div class="lesson-card lesson-section">';
-      html += '<div class="lesson-section-media">' + img + "</div>";
-      html += '<div class="lesson-section-body">';
-      html += "<h3 class=\"lesson-heading\">" + escapeHtml(section.heading || "") + "</h3>";
-      html += "<p class=\"lesson-text\">" + escapeHtml(section.text || "") + "</p>";
-      html += "</div>";
-      html += "</div>";
+    function go(idx) {
+      current = Math.max(0, Math.min(total - 1, idx));
+      stage.innerHTML = renderSlideBody(slides[current]);
+      // ilerleme + butonlar
+      fill.style.width = Math.round(((current + 1) / total) * 100) + "%";
+      prevBtn.disabled = current === 0;
+      nextBtn.textContent = current === total - 1 ? "Bitti 🎉" : "İleri →";
+      dots.forEach(function (dot, di) {
+        if (di === current) dot.classList.add("is-active");
+        else dot.classList.remove("is-active");
+      });
+      // Sahneyi yukarı kaydır (uzun slaytlarda).
+      if (stage.scrollIntoView) stage.scrollIntoView({ block: "nearest" });
+    }
+
+    prevBtn.addEventListener("click", function () { go(current - 1); });
+    nextBtn.addEventListener("click", function () {
+      if (current === total - 1) {
+        toast("Dersi bitirdin! 🎉 Şimdi oyunları ve yarışmayı dene.", "success");
+      } else {
+        go(current + 1);
+      }
     });
 
-    // --- "Bunları biliyor muydun?" funFacts kutusu ---
-    if (funFacts.length) {
-      html += '<div class="lesson-card funfacts-box">';
-      html += "<h3 class=\"funfacts-title\">💡 Bunları biliyor muydun?</h3>";
-      html += '<ul class="funfacts-list">';
-      funFacts.forEach(function (fact) {
-        html += "<li>" + escapeHtml(fact) + "</li>";
-      });
-      html += "</ul>";
-      html += "</div>";
+    // Klavye okları
+    function onKey(e) {
+      if (e.key === "ArrowRight") go(current + 1);
+      else if (e.key === "ArrowLeft") go(current - 1);
     }
-
-    // --- Anahtar terimler sözlüğü ---
-    if (keyTerms.length) {
-      html += '<div class="lesson-card keyterms-box">';
-      html += "<h3 class=\"keyterms-title\">📖 Anahtar Terimler</h3>";
-      html += '<dl class="keyterms-list">';
-      keyTerms.forEach(function (kt) {
-        html += "<dt class=\"keyterm-term\">" + escapeHtml(kt.term || "") + "</dt>";
-        html += "<dd class=\"keyterm-def\">" + escapeHtml(kt.definition || "") + "</dd>";
-      });
-      html += "</dl>";
-      html += "</div>";
+    document.addEventListener("keydown", onKey);
+    // Yeni ders kurulunca eski dinleyiciyi temizleyebilmek için sakla.
+    if (container._lessonKeyHandler) {
+      document.removeEventListener("keydown", container._lessonKeyHandler);
     }
+    container._lessonKeyHandler = onKey;
 
-    container.innerHTML = html;
+    go(0);
   }
 
-  /**
-   * Ana giriş noktası: konuyu ve sınıfı alır, dersi hazırlar ve render eder.
-   */
-  async function build(topic, grade) {
-    var ui = App.ui;
-    var gemini = App.gemini;
+  // -------------------------------------------------------------------------
+  // Ana akış
+  // -------------------------------------------------------------------------
+
+  function build(topic, grade) {
     var container = document.getElementById("lesson-content");
-
-    try {
-      ui.showLoading("Dersin hazırlanıyor...");
-      ui.updateLoading(SPINNER_MESSAGES[0], 5);
-
-      // --- Dönen esprili mesajlar (içerik gelene kadar öğrenci sıkılmasın) ---
-      var spinIndex = 0;
-      var spinTimer = setInterval(function () {
-        spinIndex = (spinIndex + 1) % SPINNER_MESSAGES.length;
-        // İçerik üretimi aşamasında %10-%30 arası nazikçe ilerle
-        ui.updateLoading(SPINNER_MESSAGES[spinIndex], null);
-      }, 1800);
-
-      // --- 1) Ders yapısını üret ---
-      var data;
-      try {
-        data = await gemini.generateJSON(buildPrompt(topic, grade));
-      } finally {
-        clearInterval(spinTimer);
-      }
-
-      if (!data || typeof data !== "object") {
-        throw new Error("Ders içeriği alınamadı.");
-      }
-
-      var sections = Array.isArray(data.sections) ? data.sections : [];
-      ui.updateLoading("Ders planı hazır! Şimdi resimler çiziliyor... 🎨", 35);
-
-      // --- 2) Tüm görselleri AYNI ANDA iste; her biri 12 sn timeout ---
-      var images = new Array(sections.length).fill(null);
-      var completed = 0;
-      var total = sections.length;
-
-      // İlerleme: resimler %35 -> %95 aralığını doldurur.
-      function bumpProgress() {
-        completed += 1;
-        var pct = total > 0 ? 35 + Math.round((completed / total) * 60) : 95;
-        ui.updateLoading(
-          "Resimler hazırlanıyor... (" + completed + "/" + total + ") 🖼️",
-          pct
-        );
-      }
-
-      var imageTasks = sections.map(function (section, i) {
-        var prompt = section && section.imagePrompt ? section.imagePrompt : "";
-        // Prompt boşsa hemen placeholder kullan, ama yine de ilerlemeyi say.
-        var task = prompt
-          ? withTimeout(gemini.generateImage(prompt), IMAGE_TIMEOUT_MS)
-          : Promise.resolve(null);
-
-        return task
-          .then(function (url) {
-            images[i] = url || null; // null ise render placeholder koyacak
-          })
-          .catch(function () {
-            // timeout veya hata: placeholder kalsın
-            images[i] = null;
-          })
-          .then(function () {
-            // Her tamamlanan (başarılı/başarısız) görselde ilerlemeyi artır
-            bumpProgress();
-          });
-      });
-
-      // Tümü bitene kadar bekle (hiçbiri reject etmez, her biri yutuluyor)
-      await Promise.all(imageTasks);
-
-      // --- 3) Render ---
-      ui.updateLoading("Son rötuşlar yapılıyor... ✨", 98);
-      data._images = images;
-      render(container, data, grade);
-
-      ui.updateLoading("Hazır! 🎉", 100);
-      ui.hideLoading();
-    } catch (err) {
-      ui.hideLoading();
-      var msg = (err && err.message) ? err.message : "Bilinmeyen bir hata oluştu.";
-      ui.toast("Ders hazırlanamadı: " + msg, "error");
-      if (container) {
-        container.innerHTML =
-          '<div class="lesson-card lesson-error">' +
-          "<h3>😕 Bir sorun oldu</h3>" +
-          "<p>Ders hazırlanırken bir hata oluştu. Lütfen tekrar dene.</p>" +
-          '<p class="lesson-error-detail">' + escapeHtml(msg) + "</p>" +
-          "</div>";
-      }
+    if (!container) {
+      toast("Ders alanı bulunamadı.", "error");
+      return Promise.reject(new Error("lesson-content yok"));
     }
+
+    var key = gradeKey(grade);
+    showLoading("Ders hazırlanıyor…");
+
+    var data;
+    return window.App.gemini
+      .generateJSON(buildPrompt(topic, grade))
+      .then(function (res) {
+        data = res;
+        var sections = Array.isArray(data.sections) ? data.sections : [];
+        if (!sections.length) throw new Error("Bölüm üretilemedi");
+
+        // Görselleri sırayla üret (ilerleme göster).
+        var imageMap = {};
+        var total = sections.length;
+        var chain = Promise.resolve();
+        sections.forEach(function (sec, i) {
+          chain = chain.then(function () {
+            updateLoading(
+              "Görseller çiziliyor… (" + (i + 1) + "/" + total + ")",
+              Math.round(((i + 1) / total) * 100)
+            );
+            return window.App.gemini
+              .generateImage(fullImagePrompt(sec, topic, key))
+              .then(function (url) {
+                if (url) imageMap[i] = url;
+              });
+          });
+        });
+        return chain.then(function () { return imageMap; });
+      })
+      .then(function (imageMap) {
+        hideLoading();
+        var slides = buildSlides(data, imageMap, topic, grade);
+        renderDeck(container, slides);
+      })
+      .catch(function (err) {
+        hideLoading();
+        toast("Ders oluşturulamadı: " + (err && err.message ? err.message : err), "error");
+        if (window.console) console.error("[lesson]", err);
+      });
   }
 
   return { build: build };

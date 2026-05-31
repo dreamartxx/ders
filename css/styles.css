@@ -556,6 +556,202 @@ a { color: var(--c-primary-dark); }
 }
 
 /* ============================================================
+   DERS — SLAYT GÖSTERİSİ (deck)
+   Görsel ağırlıklı, sayfa sayfa gezilen ders deneyimi.
+   ============================================================ */
+.deck { animation: fade-in 0.4s var(--ease); }
+
+.deck-progress {
+  width: 100%;
+  height: 8px;
+  background: #eceaf7;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.deck-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--grad-primary);
+  border-radius: 999px;
+  transition: width 0.45s var(--ease);
+}
+
+.deck-stage { min-height: 360px; }
+
+/* Tek bir slayt */
+.slide { animation: slide-in 0.4s var(--ease); }
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Kapak slaytı */
+.slide-cover {
+  text-align: center;
+  padding: clamp(24px, 6vw, 60px) 16px;
+  background: var(--grad-bg);
+  border-radius: var(--radius-lg);
+  color: #fff;
+}
+.slide-cover-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.3);
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+.slide-cover-title {
+  margin: 0 0 14px;
+  font-size: clamp(1.8rem, 1.2rem + 3vw, 3rem);
+  font-weight: 900;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+.slide-cover-intro {
+  max-width: 560px;
+  margin: 0 auto 22px;
+  font-size: clamp(1rem, 0.9rem + 0.6vw, 1.25rem);
+  line-height: 1.5;
+}
+.slide-cover-hint {
+  font-weight: 700;
+  font-size: 0.95rem;
+  opacity: 0.95;
+  animation: bob 2s ease-in-out infinite;
+}
+
+/* Bölüm slaytı: büyük görsel + kısa metin */
+.slide-section {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(16px, 3vw, 32px);
+  align-items: center;
+}
+.slide-img-wrap {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  background: #f3f1ff;
+}
+.slide-img {
+  width: 100%;
+  height: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  display: block;
+}
+.slide-img-ph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 260px;
+  border-radius: var(--radius-lg);
+  background: var(--grad-bg);
+  color: #fff;
+}
+.slide-img-ph span { font-size: 3.5rem; }
+.slide-img-ph small { font-weight: 600; opacity: 0.9; }
+
+.slide-heading {
+  margin: 0 0 14px;
+  font-size: clamp(1.4rem, 1.1rem + 1.4vw, 2rem);
+  font-weight: 900;
+  line-height: 1.2;
+}
+.slide-text {
+  margin: 0;
+  font-size: clamp(1.05rem, 1rem + 0.5vw, 1.3rem);
+  line-height: 1.6;
+  color: var(--c-text);
+}
+
+/* Şaşırtıcı bilgiler slaytı */
+.slide-facts { padding: 8px 0; }
+.slide-facts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.slide-facts-list li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #fff8e7;
+  border: 1px solid #ffe9b3;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.fact-star { font-size: 1.4rem; flex: 0 0 auto; }
+
+/* Anahtar kavramlar slaytı */
+.terms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.term-card {
+  background: #fff;
+  border: 2px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: transform 0.2s var(--ease), border-color 0.2s;
+}
+.term-card:hover { transform: translateY(-3px); border-color: var(--c-primary); }
+.term-name { font-weight: 800; color: var(--c-primary-dark); margin-bottom: 6px; }
+.term-def { font-size: 0.92rem; color: var(--c-text-soft); line-height: 1.45; }
+
+/* Gezinme çubuğu */
+.deck-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+.deck-btn {
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px 22px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  background: #eef0fb;
+  color: var(--c-text);
+  transition: transform 0.2s var(--ease), filter 0.2s;
+}
+.deck-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.deck-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.deck-next.btn-primary {
+  background: var(--grad-primary);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(108, 92, 231, 0.35);
+}
+
+.deck-dots { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.deck-dot {
+  width: 11px;
+  height: 11px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #d6d3ec;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), background 0.2s;
+}
+.deck-dot:hover { transform: scale(1.2); }
+.deck-dot.is-active { background: var(--c-primary); transform: scale(1.3); }
+
+/* ============================================================
    DURUM MESAJLARI (boş/hata)
    ============================================================ */
 .state-msg {
@@ -880,6 +1076,9 @@ a { color: var(--c-primary-dark); }
   .workspace-head { justify-content: center; text-align: center; }
   .tasks-board { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .task-card { height: 180px; }
+  .slide-section { grid-template-columns: 1fr; }
+  .slide-img { max-height: 300px; }
+  .deck-btn { padding: 11px 16px; font-size: 0.95rem; }
 }
 
 /* Hareket azaltma tercihi */
