@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Merak ettiğin her konuyu eğlenceli derslere, oyunlara ve testlere dönüştüren yapay zeka destekli öğrenme arkadaşın." />
+  <title>Merak Küresi · Yapay Zeka Destekli Ders Atölyesi</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Uygulama kabuğu -->
+  <div id="app">
+
+    <!-- Üst bar: marka + ayarlar -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">🌍</span>
+        <span class="brand-name">Merak Küresi</span>
+      </div>
+
+      <div class="settings-area">
+        <!-- Ayarlar düğmesi -->
+        <button id="settings-toggle" class="icon-btn" type="button" aria-label="Ayarları aç/kapat" title="Ayarlar">⚙️</button>
+
+        <!-- Ayarlar paneli (başta gizli) -->
+        <section id="settings-panel" class="settings-panel hidden" aria-label="Ayarlar paneli">
+          <h2 class="settings-title">🔑 API Anahtarı</h2>
+          <p class="settings-desc">
+            Dersleri üretebilmek için bir Google AI Studio API anahtarına ihtiyacın var.
+            Anahtarın yalnızca senin tarayıcında saklanır, hiçbir yere gönderilmez.
+          </p>
+          <div class="settings-field">
+            <input
+              id="api-key-input"
+              class="text-input"
+              type="password"
+              placeholder="API anahtarını buraya yapıştır"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button id="save-key-btn" class="btn btn-primary" type="button">Kaydet</button>
+          </div>
+          <ol class="settings-steps">
+            <li><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a> sayfasını aç.</li>
+            <li>"Create API key" (Anahtar oluştur) düğmesine tıkla.</li>
+            <li>Oluşan anahtarı kopyalayıp yukarıdaki kutuya yapıştır ve Kaydet'e bas.</li>
+          </ol>
+        </section>
+      </div>
+    </header>
+
+    <!-- KARŞILAMA EKRANI -->
+    <main id="welcome" class="welcome">
+      <div class="welcome-hero">
+        <div class="welcome-badge">✨ Yapay Zeka Destekli Öğrenme</div>
+        <h1 class="welcome-title">Merak ettiğin her şeyi <span class="grad-text">eğlenceli bir derse</span> dönüştür!</h1>
+        <p class="welcome-subtitle">
+          Bir konu yaz, sınıf seviyeni seç ve gerisini bize bırak.
+          Sana özel bir ders, oyunlar, mini bir test ve ödev hazırlayalım. 🎒
+        </p>
+
+        <!-- Konu giriş formu -->
+        <form id="topic-form" class="topic-form" autocomplete="off">
+          <div class="topic-row">
+            <input
+              id="topic-input"
+              class="topic-input"
+              type="text"
+              placeholder="Hangi konuyu öğrenmek istersin? (örn. Fotosentez)"
+              aria-label="Konu"
+              required
+            />
+            <select id="grade-select" class="grade-select" aria-label="Sınıf seviyesi">
+              <option value="ilkokul">İlkokul</option>
+              <option value="ortaokul">Ortaokul</option>
+              <option value="lise">Lise</option>
+            </select>
+          </div>
+          <button id="start-btn" class="btn btn-primary btn-large" type="submit">🚀 Dersi Başlat</button>
+        </form>
+
+        <!-- Örnek konu önerileri -->
+        <div class="examples">
+          <span class="examples-label">Fikre mi ihtiyacın var?</span>
+          <div class="example-chips">
+            <button class="example-chip" type="button" data-topic="Fotosentez">🌱 Fotosentez</button>
+            <button class="example-chip" type="button" data-topic="Kesirler">➗ Kesirler</button>
+            <button class="example-chip" type="button" data-topic="Osmanlı Devleti">🏰 Osmanlı Devleti</button>
+            <button class="example-chip" type="button" data-topic="Güneş Sistemi">🪐 Güneş Sistemi</button>
+            <button class="example-chip" type="button" data-topic="Hücre">🔬 Hücre</button>
+            <button class="example-chip" type="button" data-topic="Çarpma İşlemi">✖️ Çarpma İşlemi</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ÇALIŞMA ALANI (başta gizli) -->
+    <section id="workspace" class="workspace hidden" aria-label="Ders çalışma alanı">
+      <div class="workspace-head">
+        <h2 id="workspace-title" class="workspace-title">Ders</h2>
+        <button id="new-topic-btn" class="btn btn-ghost" type="button">＋ Yeni Konu</button>
+      </div>
+
+      <!-- Sekme çubuğu -->
+      <nav id="tab-nav" class="tab-nav" aria-label="Ders bölümleri">
+        <button class="tab-btn active" type="button" data-tab="lesson">📖 Ders</button>
+        <button class="tab-btn" type="button" data-tab="games">🎮 Oyunlar</button>
+        <button class="tab-btn" type="button" data-tab="quiz">❓ Test</button>
+        <button class="tab-btn" type="button" data-tab="homework">📝 Ödev</button>
+      </nav>
+
+      <!-- Paneller -->
+      <div class="panels">
+        <section id="panel-lesson" class="panel" aria-label="Ders">
+          <div id="lesson-content" class="panel-content"></div>
+        </section>
+
+        <section id="panel-games" class="panel hidden" aria-label="Oyunlar">
+          <div id="games-content" class="panel-content"></div>
+        </section>
+
+        <section id="panel-quiz" class="panel hidden" aria-label="Test">
+          <div id="quiz-content" class="panel-content"></div>
+        </section>
+
+        <section id="panel-homework" class="panel hidden" aria-label="Ödev">
+          <div id="homework-content" class="panel-content"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- YÜKLEME KATMANI (başta gizli) -->
+    <div id="loading-overlay" class="loading-overlay hidden" role="status" aria-live="polite">
+      <div class="loading-card">
+        <div class="loader" aria-hidden="true">
+          <span class="loader-rocket">🚀</span>
+          <span class="loader-planet">🪐</span>
+        </div>
+        <p id="loading-status" class="loading-status">Hazırlanıyor...</p>
+        <div class="loading-track">
+          <div id="loading-bar" class="loading-bar"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modüller (sözleşmedeki yükleme sırası) -->
+  <script src="js/config.js"></script>
+  <script src="js/gemini.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/lesson.js"></script>
+  <script src="js/games.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/homework.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
