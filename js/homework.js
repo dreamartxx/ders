@@ -214,6 +214,7 @@ window.App = window.App || {};
       "</p>" +
       "</div>" +
       '<button type="button" class="btn btn-ghost tasks-print">🖨️ Yazdır</button>' +
+      '<button type="button" class="btn btn-primary tasks-download">⬇️ HTML indir</button>' +
       "</div>" +
       '<p class="tasks-hint">💡 Bir kartı görevi görmek için tıkla. Hadi başlayalım!</p>' +
       '<div class="tasks-board">' +
@@ -257,6 +258,105 @@ window.App = window.App || {};
       printBtn.addEventListener("click", function () {
         window.print();
       });
+    }
+
+    // HTML olarak indir.
+    var dlBtn = container.querySelector(".tasks-download");
+    if (dlBtn) {
+      dlBtn.addEventListener("click", function () {
+        downloadHtml(hw, topic, grade);
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // İndirme — bağımsız (offline açılabilen) HTML ödev belgesi üret
+  // -------------------------------------------------------------------------
+
+  function listSection(title, items, ordered) {
+    if (!items || !items.length) return "";
+    var tag = ordered ? "ol" : "ul";
+    var lis = items
+      .map(function (it) {
+        return "<li>" + escapeHtml(it) + "</li>";
+      })
+      .join("");
+    return "<h2>" + escapeHtml(title) + "</h2><" + tag + ">" + lis + "</" + tag + ">";
+  }
+
+  // Dosya adı için güvenli sadeleştirme.
+  function slugify(s) {
+    return String(s || "odev")
+      .toLowerCase()
+      .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ğ/g, "g")
+      .replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "odev";
+  }
+
+  function buildDocument(hw, topic, grade) {
+    var parts = [];
+    parts.push(listSection("📝 Kısa Cevaplı Sorular", hw.shortAnswer, true));
+    parts.push(listSection("✍️ Klasik / Açık Uçlu Sorular", hw.openEnded, true));
+    if (hw.project) {
+      parts.push(
+        "<h2>🏆 Proje / Araştırma Görevi</h2><p class='project'>" +
+          escapeHtml(hw.project) +
+          "</p>"
+      );
+    }
+    if (hw.answerKey && hw.answerKey.length) {
+      parts.push(
+        '<details class="answers"><summary>🔑 Cevap Anahtarı (göstermek için tıkla)</summary>' +
+          listSection("", hw.answerKey, true) +
+          "</details>"
+      );
+    }
+
+    var heading = escapeHtml(topic) + " — " + escapeHtml(gradeLabel(grade)) + " Ödevi";
+
+    return [
+      "<!DOCTYPE html>",
+      '<html lang="tr"><head><meta charset="UTF-8">',
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+      "<title>" + heading + "</title>",
+      "<style>",
+      "body{font-family:'Segoe UI',system-ui,sans-serif;max-width:760px;margin:0 auto;",
+      "padding:32px 20px;color:#2d3436;line-height:1.6;background:#fff;}",
+      "h1{font-size:1.6rem;border-bottom:3px solid #6c5ce7;padding-bottom:10px;}",
+      "h2{font-size:1.2rem;margin-top:28px;color:#5546d6;}",
+      "ol,ul{padding-left:22px;} li{margin:8px 0;}",
+      ".project{background:#fff3d6;padding:14px 16px;border-radius:10px;}",
+      ".answers{margin-top:28px;background:#f6f5ff;padding:12px 16px;border-radius:10px;}",
+      ".answers summary{cursor:pointer;font-weight:700;color:#5546d6;}",
+      ".meta{color:#636e72;font-size:.9rem;} @media print{.answers{display:block;}}",
+      "</style></head><body>",
+      "<h1>" + heading + "</h1>",
+      '<p class="meta">Konu: ' + escapeHtml(topic) + " &nbsp;•&nbsp; Seviye: " +
+        escapeHtml(gradeLabel(grade)) + "</p>",
+      parts.join("\n"),
+      "</body></html>"
+    ].join("\n");
+  }
+
+  function downloadHtml(hw, topic, grade) {
+    try {
+      var html = buildDocument(hw, topic, grade);
+      var blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = slugify(topic) + "-odev.html";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Belleği serbest bırak.
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      toast("Ödev indirildi 📥", "success");
+    } catch (err) {
+      if (window.console) console.error("[homework] indirme hatası", err);
+      toast("İndirme başarısız oldu.", "error");
     }
   }
 

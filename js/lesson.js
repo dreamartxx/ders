@@ -93,7 +93,7 @@ window.App.lesson = (function () {
       '      "imagePrompt": "ingilizce, somut, görselde neyin görüneceğini net anlatan betimleme"',
       "    }",
       "  ],",
-      '  "funFacts": ["kısa şaşırtıcı bilgi 1", "kısa şaşırtıcı bilgi 2", "kısa şaşırtıcı bilgi 3"],',
+      '  "funFacts": ["konuyla ilgili GERÇEK ve doğru ilginç bilgi 1", "gerçek bilgi 2", "gerçek bilgi 3"],',
       '  "keyTerms": [{"term": "kavram", "definition": "tek cümlelik kısa tanım"}]',
       "}",
       "ÇOK ÖNEMLİ KURALLAR:",
@@ -105,6 +105,7 @@ window.App.lesson = (function () {
       "- Liste değilse konuyu mantıklı alt başlıklara böl (yine genel giriş/sonuç değil, gerçek alt konular).",
       "- text alanı kısa olsun; uzun paragraf YAZMA. Görsel ana anlatımı taşısın, yazı özet/örnek versin.",
       "- imagePrompt İngilizce, somut ve görsel olsun; o kartı net göstersin.",
+      "- funFacts alanı: SADECE gerçek, doğru ve doğrulanabilir bilgiler yaz. ASLA şaka, uydurma, abartı veya 'şuna inanır mısın' tarzı asılsız ifade kullanma. Her madde konuyla ilgili somut ve net bir bilgi olsun.",
       "- Tüm Türkçe metinler sınıf seviyesine uygun olsun."
     ].join("\n");
   }
