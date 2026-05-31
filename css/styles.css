@@ -63,7 +63,13 @@ a { color: var(--c-primary-dark); }
   margin: 0 auto;
   padding: 16px clamp(12px, 4vw, 32px) 48px;
   min-height: 100vh;
+  transition: max-width 0.3s var(--ease);
 }
+/* Ders çalışırken arayüz tüm ekranı kullansın */
+#app.is-workspace {
+  max-width: 1500px;
+}
+#app.is-workspace .workspace { padding: clamp(18px, 2.5vw, 40px); }
 
 /* ============================================================
    ÜST BAR

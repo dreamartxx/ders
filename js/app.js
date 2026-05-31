@@ -91,6 +91,7 @@
   function goWelcome() {
     const ws = $("#workspace"); if (ws) ws.classList.add("hidden");
     if (App.focus && App.focus.hide) App.focus.hide();
+    const app = $("#app"); if (app) app.classList.remove("is-workspace");
     const wc = $("#welcome"); if (wc) wc.classList.remove("hidden");
     const input = $("#topic-input"); if (input) input.focus();
   }
@@ -135,6 +136,7 @@
 
     // Odak/karşılama ekranından çalışma alanına geç
     if (App.focus && App.focus.hide) App.focus.hide();
+    const app = $("#app"); if (app) app.classList.add("is-workspace");
     const wc = $("#welcome"); if (wc) wc.classList.add("hidden");
     const ws = $("#workspace"); if (ws) ws.classList.remove("hidden");
     const title = $("#workspace-title");

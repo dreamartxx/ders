@@ -88,21 +88,29 @@ window.App.lesson = (function () {
       '  "intro": "tek cümlelik merak uyandıran giriş",',
       '  "sections": [',
       "    {",
-      '      "heading": "çok kısa bölüm başlığı (2-4 kelime)",',
-      '      "text": "EN FAZLA 2 KISA cümle. Resmi açıklayan ya da somut örnek veren bir detay.",',
+      '      "heading": "kart başlığı (kişi/olay/kavram adı, kısa)",',
+      '      "text": "EN FAZLA 2 KISA cümle. O karta ait kısa özet veya somut örnek.",',
       '      "imagePrompt": "ingilizce, somut, görselde neyin görüneceğini net anlatan betimleme"',
       "    }",
       "  ],",
       '  "funFacts": ["kısa şaşırtıcı bilgi 1", "kısa şaşırtıcı bilgi 2", "kısa şaşırtıcı bilgi 3"],',
       '  "keyTerms": [{"term": "kavram", "definition": "tek cümlelik kısa tanım"}]',
       "}",
-      "Kurallar:",
-      "- 4 ila 6 bölüm üret. Her bölüm tek bir fikre odaklansın.",
-      "- ÇOK ÖNEMLİ: text alanı kısa olsun; uzun paragraf YAZMA. Görsel ana anlatımı taşısın, yazı sadece açıklasın/örnek versin.",
-      "- imagePrompt İngilizce, somut ve görsel olsun; konuyu net göstersin.",
+      "ÇOK ÖNEMLİ KURALLAR:",
+      "- Konuyu giriş/gelişme/sonuç gibi GENEL bölümlere AYIRMA.",
+      "- Eğer konu bir LİSTE içeriyorsa (örn. padişahlar, krallar, gezegenler, olaylar, savaşlar, organlar), " +
+        "listedeki HER ÖĞE için AYRI bir kart oluştur ve yanına o öğeye ait kısa bir özet yaz. " +
+        "Örn. 'Osmanlı padişahları' için her padişah ayrı bir kart olsun (heading: padişah adı, text: kısa özet ve dönemindeki önemli olay).",
+      "- Konuyu eksiksiz kapsa; önemli hiçbir öğeyi atlama. Ama en fazla 20 kart üret (20'den fazlaysa en önemli 20'sini seç).",
+      "- Liste değilse konuyu mantıklı alt başlıklara böl (yine genel giriş/sonuç değil, gerçek alt konular).",
+      "- text alanı kısa olsun; uzun paragraf YAZMA. Görsel ana anlatımı taşısın, yazı özet/örnek versin.",
+      "- imagePrompt İngilizce, somut ve görsel olsun; o kartı net göstersin.",
       "- Tüm Türkçe metinler sınıf seviyesine uygun olsun."
     ].join("\n");
   }
+
+  // Bölüm sayısını en fazla 20 ile sınırla (sayfa sınırı).
+  var MAX_SECTIONS = 20;
 
   // -------------------------------------------------------------------------
   // Görsel stili — sınıf seviyesine göre
@@ -350,6 +358,11 @@ window.App.lesson = (function () {
         data = res;
         var sections = Array.isArray(data.sections) ? data.sections : [];
         if (!sections.length) throw new Error("Bölüm üretilemedi");
+        // Sayfa sınırı: en fazla 20 kart.
+        if (sections.length > MAX_SECTIONS) {
+          sections = sections.slice(0, MAX_SECTIONS);
+        }
+        data.sections = sections;
 
         // Görselleri sırayla üret (ilerleme göster).
         var imageMap = {};
