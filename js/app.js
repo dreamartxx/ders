@@ -81,7 +81,7 @@
         e.preventDefault();
         const topic = ($("#topic-input").value || "").trim();
         const grade = $("#grade-select").value || "ilkokul";
-        startLesson(topic, grade);
+        beginTopic(topic, grade);
       });
     }
     const newBtn = $("#new-topic-btn");
@@ -90,11 +90,14 @@
 
   function goWelcome() {
     const ws = $("#workspace"); if (ws) ws.classList.add("hidden");
+    if (App.focus && App.focus.hide) App.focus.hide();
     const wc = $("#welcome"); if (wc) wc.classList.remove("hidden");
     const input = $("#topic-input"); if (input) input.focus();
   }
 
-  async function startLesson(topic, grade) {
+  // Konu girilince: önce "neyi öğrenmek istersin?" odak ekranını göster,
+  // sonra seçilen odakla dersi başlat.
+  async function beginTopic(topic, grade) {
     if (!topic) { App.ui.toast("Lütfen bir konu yaz. ✍️", "error"); return; }
 
     // API anahtarı yoksa ayarları aç
@@ -105,6 +108,21 @@
       return;
     }
 
+    let choice;
+    try {
+      // Odak seçimi (geri'ye basılırsa cancel ile reddedilir)
+      choice = await App.focus.choose(topic, grade);
+    } catch (err) {
+      goWelcome(); // kullanıcı vazgeçti
+      return;
+    }
+
+    const effectiveTopic = (choice && choice.topic) || topic;
+    const displayTitle = choice && choice.label ? topic + " · " + choice.label : topic;
+    startLesson(effectiveTopic, grade, displayTitle);
+  }
+
+  async function startLesson(topic, grade, displayTitle) {
     App.state.topic = topic;
     App.state.grade = grade;
 
@@ -115,11 +133,12 @@
       if (c) c.innerHTML = "";
     });
 
-    // Karşılamadan çalışma alanına geç
+    // Odak/karşılama ekranından çalışma alanına geç
+    if (App.focus && App.focus.hide) App.focus.hide();
     const wc = $("#welcome"); if (wc) wc.classList.add("hidden");
     const ws = $("#workspace"); if (ws) ws.classList.remove("hidden");
     const title = $("#workspace-title");
-    if (title) title.textContent = topic + " · " + (App.config.GRADES[grade] || grade);
+    if (title) title.textContent = (displayTitle || topic) + " · " + (App.config.GRADES[grade] || grade);
     App.ui.switchTab("lesson");
 
     try {
