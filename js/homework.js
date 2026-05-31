@@ -1,9 +1,10 @@
-// homework.js — Ödev modülü
+// homework.js — Ödev / Görevler modülü
 // Sözleşme: window.App.homework.generate(containerSel, {topic, grade}) async
-// Bağımlılıklar (başka ajanlar yazıyor):
+// Bağımlılıklar:
 //   - window.App.gemini.generateJSON(prompt)
-//   - window.App.ui.showLoading / updateLoading / hideLoading / toast
+//   - window.App.ui.showLoading / hideLoading / toast
 //   - window.App.config.GRADES
+// Ödev, tıklanınca çevrilen (flip) görsel GÖREV KARTLARI olarak sunulur.
 // Saf JS, build/import yok.
 
 window.App = window.App || {};
@@ -55,35 +56,35 @@ window.App = window.App || {};
   function difficultyHint(level) {
     switch (level.ad) {
       case "ilkokul":
-        return "Sorular çok basit, kısa ve somut olsun. Günlük hayattan örnekler kullan.";
+        return "Görevler çok basit, kısa, somut ve eğlenceli olsun. Günlük hayattan örnekler kullan.";
       case "lise":
-        return "Sorular düşündürücü, analiz ve sentez gerektiren nitelikte olsun.";
+        return "Görevler düşündürücü, analiz ve sentez gerektiren nitelikte olsun.";
       default:
-        return "Sorular orta düzeyde; kavram bilgisini ve basit uygulamayı ölçsün.";
+        return "Görevler orta düzeyde; kavram bilgisini ve basit uygulamayı ölçsün.";
     }
+  }
+
+  function gradeLabel(grade) {
+    var grades = (window.App.config && window.App.config.GRADES) || {};
+    return grades[grade] || gradeLevel(grade).ad;
   }
 
   // ---------------------------------------------------------------------------
   // İstem (prompt) üretimi
   // ---------------------------------------------------------------------------
 
-  // İnsana okunaklı sınıf adı (config.GRADES); yoksa ham değere düş.
-  function gradeLabel(grade) {
-    var grades = (window.App.config && window.App.config.GRADES) || {};
-    return grades[grade] || gradeLevel(grade).ad;
-  }
-
   function buildPrompt(topic, grade) {
     var level = gradeLevel(grade);
     return [
-      "Sen deneyimli bir Türk öğretmenisin.",
+      "Sen yaratıcı ve eğlenceli bir Türk öğretmenisin.",
       '"' + topic + '" konusunda ' + gradeLabel(grade) + ' (' + level.aralik + ", " + level.ad +
-        ") seviyesine uygun bir ÖDEV hazırla.",
+        ") seviyesine uygun EĞLENCELİ GÖREVLER hazırla.",
       difficultyHint(level),
-      "Tüm metinler Türkçe olsun.",
-      "İçerik: 3-5 kısa cevaplı soru (shortAnswer), 2-4 klasik/açık uçlu soru (openEnded),",
-      "1 adet araştırma/proje görevi (project) ve kısa cevaplı sorular için cevap anahtarı (answerKey).",
-      "answerKey dizisi shortAnswer ile aynı sırada ve aynı sayıda olsun.",
+      "Tüm metinler Türkçe olsun ve görevler merak uyandırıcı, motive edici bir dille yazılsın.",
+      "İçerik:",
+      "- 3-5 kısa cevaplı soru görevi (shortAnswer) ve bunların cevap anahtarı (answerKey, aynı sırada ve aynı sayıda).",
+      "- 2-4 klasik/açık uçlu düşündürücü görev (openEnded).",
+      "- 1 adet eğlenceli araştırma/proje görevi (project).",
       "Yalnızca şu JSON şemasında, başka hiçbir metin olmadan çıktı ver:",
       '{ "shortAnswer": ["..."], "openEnded": ["..."], "project": "...", "answerKey": ["..."] }'
     ].join("\n");
@@ -108,96 +109,153 @@ window.App = window.App || {};
   }
 
   // ---------------------------------------------------------------------------
-  // Render
+  // Görev listesi oluşturma
   // ---------------------------------------------------------------------------
 
-  // Numaralı liste (ol) üret.
-  function olList(items, extraClass) {
-    if (!items.length) return "";
-    var lis = items
-      .map(function (item) {
-        return "<li>" + escapeHtml(item) + "</li>";
-      })
-      .join("");
-    return '<ol class="hw-list ' + (extraClass || "") + '">' + lis + "</ol>";
-  }
+  // Üç tür içeriği tek bir "görev kartı" listesine dönüştür.
+  // Her görev: {kind, icon, label, text, answer}
+  function buildTasks(hw) {
+    var tasks = [];
+    var icons = ["🧩", "🔍", "⭐", "💫", "🎈", "🚀", "🎯", "🌈"];
 
-  function renderHomework(container, hw, topic, grade) {
-    var sections = [];
+    hw.shortAnswer.forEach(function (q, i) {
+      tasks.push({
+        kind: "short",
+        label: "Hızlı Görev",
+        icon: icons[i % icons.length],
+        text: q,
+        answer: hw.answerKey[i] || ""
+      });
+    });
 
-    sections.push(
-      '<div class="hw-header">' +
-        '<h2 class="hw-title">📝 Ödev: ' +
-        escapeHtml(topic) +
-        "</h2>" +
-        '<div class="hw-meta">' +
-        escapeHtml(gradeLabel(grade)) +
-        "</div>" +
-        '<button type="button" class="hw-print">🖨️ Yazdır</button>' +
-        "</div>"
-    );
-
-    if (hw.shortAnswer.length) {
-      sections.push(
-        '<section class="hw-section">' +
-          "<h3>Kısa Cevaplı Sorular</h3>" +
-          olList(hw.shortAnswer) +
-          "</section>"
-      );
-    }
-
-    if (hw.openEnded.length) {
-      sections.push(
-        '<section class="hw-section">' +
-          "<h3>Klasik / Açık Uçlu Sorular</h3>" +
-          olList(hw.openEnded) +
-          "</section>"
-      );
-    }
+    hw.openEnded.forEach(function (q, i) {
+      tasks.push({
+        kind: "open",
+        label: "Düşün & Yaz",
+        icon: "✍️",
+        text: q,
+        answer: ""
+      });
+    });
 
     if (hw.project) {
-      sections.push(
-        '<section class="hw-section">' +
-          "<h3>Proje / Araştırma Görevi</h3>" +
-          '<div class="hw-project-box">🔍 ' +
-          escapeHtml(hw.project) +
-          "</div>" +
-          "</section>"
-      );
-    }
-
-    if (hw.answerKey.length) {
-      sections.push(
-        '<section class="hw-section hw-answerkey">' +
-          '<button type="button" class="hw-answer-toggle">🔑 Cevap anahtarını göster</button>' +
-          '<div class="hw-answer-content" hidden>' +
-          "<h3>Cevap Anahtarı</h3>" +
-          olList(hw.answerKey) +
-          "</div>" +
-          "</section>"
-      );
-    }
-
-    container.innerHTML = '<div class="hw-card">' + sections.join("") + "</div>";
-
-    // Yazdır butonu.
-    var printBtn = container.querySelector(".hw-print");
-    if (printBtn) {
-      printBtn.addEventListener("click", function () {
-        window.print();
+      tasks.push({
+        kind: "project",
+        label: "Büyük Macera",
+        icon: "🏆",
+        text: hw.project,
+        answer: ""
       });
     }
 
-    // Cevap anahtarı göster/gizle (başta gizli).
-    var toggleBtn = container.querySelector(".hw-answer-toggle");
-    var answerContent = container.querySelector(".hw-answer-content");
-    if (toggleBtn && answerContent) {
-      toggleBtn.addEventListener("click", function () {
-        var hidden = answerContent.hidden;
-        answerContent.hidden = !hidden;
-        toggleBtn.textContent = hidden
-          ? "🔑 Cevap anahtarını gizle"
-          : "🔑 Cevap anahtarını göster";
+    return tasks;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  function renderTaskCard(task, index) {
+    var num = index + 1;
+
+    // Arka yüz: görev metni + (kısa cevaplılarda) gizli ipucu/cevap.
+    var backExtra = "";
+    if (task.kind === "short" && task.answer) {
+      backExtra =
+        '<button type="button" class="task-answer-toggle">💡 İpucunu gör</button>' +
+        '<div class="task-answer" hidden>' + escapeHtml(task.answer) + "</div>";
+    } else if (task.kind === "open") {
+      backExtra = '<div class="task-tip">✏️ Bu görevi defterine kendi cümlelerinle yaz.</div>';
+    } else if (task.kind === "project") {
+      backExtra = '<div class="task-tip">🔎 Araştır, keşfet ve sonucunu paylaş!</div>';
+    }
+
+    return (
+      '<div class="task-card task-' + task.kind + '" data-index="' + index + '" tabindex="0" ' +
+      'role="button" aria-label="Görev ' + num + ' — çevirmek için tıkla">' +
+      '<div class="task-card-inner">' +
+      // ÖN YÜZ
+      '<div class="task-face task-front">' +
+      '<div class="task-icon">' + escapeHtml(task.icon) + "</div>" +
+      '<div class="task-badge">' + escapeHtml(task.label) + "</div>" +
+      '<div class="task-num">Görev ' + num + "</div>" +
+      '<div class="task-flip-hint">👆 Aç</div>' +
+      "</div>" +
+      // ARKA YÜZ
+      '<div class="task-face task-back">' +
+      '<div class="task-back-num">Görev ' + num + "</div>" +
+      '<div class="task-text">' + escapeHtml(task.text) + "</div>" +
+      backExtra +
+      "</div>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderHomework(container, hw, topic, grade) {
+    var tasks = buildTasks(hw);
+
+    var cardsHtml = tasks
+      .map(function (t, i) {
+        return renderTaskCard(t, i);
+      })
+      .join("");
+
+    container.innerHTML =
+      '<div class="tasks-wrap">' +
+      '<div class="tasks-header">' +
+      '<div>' +
+      '<h2 class="tasks-title">🎒 Görev Panosu</h2>' +
+      '<p class="tasks-sub">' +
+      escapeHtml(topic) +
+      " • " +
+      escapeHtml(gradeLabel(grade)) +
+      ' • <strong>' + tasks.length + ' görev</strong>' +
+      "</p>" +
+      "</div>" +
+      '<button type="button" class="btn btn-ghost tasks-print">🖨️ Yazdır</button>' +
+      "</div>" +
+      '<p class="tasks-hint">💡 Bir kartı görevi görmek için tıkla. Hadi başlayalım!</p>' +
+      '<div class="tasks-board">' +
+      cardsHtml +
+      "</div>" +
+      "</div>";
+
+    // Kartı çevirme — tıklama ve klavye (Enter/Space).
+    var cards = container.querySelectorAll(".task-card");
+    Array.prototype.forEach.call(cards, function (card) {
+      function flip(e) {
+        // İpucu butonuna basıldıysa kartı çevirme.
+        if (e.target.closest(".task-answer-toggle")) return;
+        card.classList.toggle("is-flipped");
+      }
+      card.addEventListener("click", flip);
+      card.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          card.classList.toggle("is-flipped");
+        }
+      });
+    });
+
+    // İpucu/cevap göster-gizle.
+    var toggles = container.querySelectorAll(".task-answer-toggle");
+    Array.prototype.forEach.call(toggles, function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var ans = btn.parentNode.querySelector(".task-answer");
+        if (!ans) return;
+        var hidden = ans.hidden;
+        ans.hidden = !hidden;
+        btn.textContent = hidden ? "🙈 İpucunu gizle" : "💡 İpucunu gör";
+      });
+    });
+
+    // Yazdır.
+    var printBtn = container.querySelector(".tasks-print");
+    if (printBtn) {
+      printBtn.addEventListener("click", function () {
+        window.print();
       });
     }
   }
@@ -205,8 +263,8 @@ window.App = window.App || {};
   function renderError(container) {
     if (!container) return;
     container.innerHTML =
-      '<div class="hw-error">' +
-      "😕 Ödev oluşturulurken bir sorun oluştu. Lütfen tekrar deneyin." +
+      '<div class="state-msg state-error">' +
+      "😕 Görevler oluşturulurken bir sorun oluştu. Lütfen tekrar deneyin." +
       "</div>";
   }
 
@@ -215,7 +273,7 @@ window.App = window.App || {};
   // ---------------------------------------------------------------------------
 
   window.App.homework = {
-    // async: containerSel içine ödevi üretip render eder.
+    // async: containerSel içine görevleri üretip render eder.
     generate: function (containerSel, opts) {
       opts = opts || {};
       var topic = opts.topic || "";
@@ -223,7 +281,7 @@ window.App = window.App || {};
       var container = document.querySelector(containerSel);
 
       if (!container) {
-        toast("Ödev alanı bulunamadı.", "error");
+        toast("Görev alanı bulunamadı.", "error");
         return Promise.reject(new Error("Container bulunamadı: " + containerSel));
       }
       if (!topic) {
@@ -232,18 +290,15 @@ window.App = window.App || {};
         return Promise.resolve();
       }
 
-      showLoading("Ödev hazırlanıyor… ✍️");
+      showLoading("Görevler hazırlanıyor… 🎒");
 
-      return (window.App.gemini.generateJSON(buildPrompt(topic, grade)))
+      return window.App.gemini
+        .generateJSON(buildPrompt(topic, grade))
         .then(function (data) {
           hideLoading();
           var hw = normalize(data);
-          if (
-            !hw.shortAnswer.length &&
-            !hw.openEnded.length &&
-            !hw.project
-          ) {
-            toast("Geçerli ödev üretilemedi, tekrar deneyin.", "error");
+          if (!hw.shortAnswer.length && !hw.openEnded.length && !hw.project) {
+            toast("Geçerli görev üretilemedi, tekrar deneyin.", "error");
             renderError(container);
             return;
           }
@@ -251,7 +306,7 @@ window.App = window.App || {};
         })
         .catch(function (err) {
           hideLoading();
-          toast("Ödev oluşturulamadı. Lütfen tekrar deneyin.", "error");
+          toast("Görevler oluşturulamadı. Lütfen tekrar deneyin.", "error");
           renderError(container);
           if (window.console && console.error) console.error("[homework]", err);
         });

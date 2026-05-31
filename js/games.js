@@ -1341,9 +1341,16 @@ window.App.games = (function () {
       desc.style.cssText = "color:#666;font-size:.85rem;line-height:1.3;";
       desc.textContent = g.desc;
 
+      var play = document.createElement("div");
+      play.style.cssText =
+        "margin-top:8px;align-self:flex-start;background:#efeaff;color:#5546d6;" +
+        "font-weight:700;font-size:.8rem;padding:5px 12px;border-radius:999px;";
+      play.textContent = "▶ Oyna";
+
       btn.appendChild(icon);
       btn.appendChild(name);
       btn.appendChild(desc);
+      btn.appendChild(play);
       btn.addEventListener("click", function () { launchGame(g); });
       grid.appendChild(btn);
     });

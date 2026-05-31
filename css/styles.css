@@ -556,6 +556,320 @@ a { color: var(--c-primary-dark); }
 }
 
 /* ============================================================
+   DURUM MESAJLARI (boş/hata)
+   ============================================================ */
+.state-msg {
+  text-align: center;
+  padding: 28px 20px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  background: #f6f5ff;
+  color: var(--c-text-soft);
+}
+.state-error { background: #fde2de; color: var(--c-danger); }
+
+/* ============================================================
+   GÖREV PANOSU (Ödev) — çevrilen görsel kartlar
+   ============================================================ */
+.tasks-wrap { animation: fade-in 0.4s var(--ease); }
+
+.tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.tasks-title { margin: 0; font-size: 1.5rem; font-weight: 900; }
+.tasks-sub { margin: 4px 0 0; color: var(--c-text-soft); font-size: 0.92rem; }
+.tasks-hint {
+  margin: 4px 0 18px;
+  color: var(--c-text-soft);
+  font-size: 0.9rem;
+}
+
+.tasks-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+/* Kart: 3B çevirme (flip) */
+.task-card {
+  position: relative;
+  height: 200px;
+  perspective: 1100px;
+  cursor: pointer;
+  outline: none;
+  border-radius: var(--radius);
+}
+.task-card:focus-visible .task-card-inner {
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.45);
+  border-radius: var(--radius);
+}
+
+.task-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s var(--ease);
+  transform-style: preserve-3d;
+}
+.task-card.is-flipped .task-card-inner { transform: rotateY(180deg); }
+
+.task-face {
+  position: absolute;
+  inset: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  overflow: auto;
+}
+
+/* Ön yüz — renkli, merak uyandırıcı */
+.task-front {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  background: var(--grad-primary);
+}
+.task-card:hover .task-card-inner:not(.is-flipped),
+.task-card:hover .task-card-inner { box-shadow: none; }
+.task-card:hover:not(.is-flipped) { transform: translateY(-4px); transition: transform 0.2s var(--ease); }
+
+.task-short .task-front { background: linear-gradient(135deg, #6c5ce7, #8e7bff); }
+.task-open .task-front { background: linear-gradient(135deg, #00b894, #00cec9); }
+.task-project .task-front { background: linear-gradient(135deg, #ff7675, #fd79a8); }
+
+.task-icon { font-size: 3rem; line-height: 1; margin-bottom: 8px; }
+.task-badge {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.task-num { font-weight: 800; font-size: 1.05rem; }
+.task-flip-hint {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  opacity: 0.9;
+  animation: bob 2s ease-in-out infinite;
+}
+
+/* Arka yüz — görev metni */
+.task-back {
+  transform: rotateY(180deg);
+  background: #fff;
+  border: 2px solid var(--c-border);
+  gap: 8px;
+}
+.task-back-num {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--c-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.task-text { font-size: 0.95rem; font-weight: 600; line-height: 1.45; }
+.task-tip {
+  margin-top: auto;
+  font-size: 0.82rem;
+  color: var(--c-text-soft);
+  background: #f6f5ff;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+.task-answer-toggle {
+  margin-top: auto;
+  align-self: flex-start;
+  border: none;
+  background: #efeaff;
+  color: var(--c-primary-dark);
+  font-weight: 700;
+  font-size: 0.82rem;
+  font-family: inherit;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.task-answer-toggle:hover { background: #e2d9ff; }
+.task-answer {
+  margin-top: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--c-success);
+  background: #d8f5ec;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   BİLGİ YARIŞMASI (Quiz)
+   ============================================================ */
+.quiz-card {
+  background: var(--c-bg-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(18px, 3vw, 30px);
+  box-shadow: var(--shadow);
+  animation: pop-in 0.3s var(--ease);
+}
+
+.quiz-progress { margin-bottom: 20px; }
+.quiz-progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #eceaf7;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.quiz-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--grad-primary);
+  transition: width 0.4s var(--ease);
+}
+.quiz-progress-text {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--c-text-soft);
+  display: flex;
+  justify-content: space-between;
+}
+
+.quiz-question {
+  margin: 0 0 18px;
+  font-size: clamp(1.1rem, 1rem + 0.6vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.quiz-options { display: grid; gap: 12px; }
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border: 2px solid var(--c-border);
+  border-radius: var(--radius);
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--c-text);
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), border-color 0.2s, background 0.2s;
+}
+.quiz-option:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--c-primary);
+  background: #f6f4ff;
+}
+.quiz-option:disabled { cursor: default; }
+
+.quiz-option-letter {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #efeaff;
+  color: var(--c-primary-dark);
+  font-weight: 800;
+}
+.quiz-option-text { flex: 1; }
+
+.quiz-option.is-correct {
+  border-color: var(--c-success);
+  background: #d8f5ec;
+}
+.quiz-option.is-correct .quiz-option-letter { background: var(--c-success); color: #fff; }
+.quiz-option.is-wrong {
+  border-color: var(--c-danger);
+  background: #fde2de;
+  animation: gamesShake 0.35s ease;
+}
+.quiz-option.is-wrong .quiz-option-letter { background: var(--c-danger); color: #fff; }
+
+@keyframes gamesShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.quiz-feedback {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  animation: pop-in 0.25s var(--ease);
+}
+.quiz-feedback.is-correct-fb { background: #d8f5ec; color: #0a7c63; }
+.quiz-feedback.is-wrong-fb { background: #fde2de; color: #a93226; }
+.quiz-feedback-head { font-weight: 800; margin-bottom: 4px; }
+.quiz-feedback-body { font-weight: 500; line-height: 1.45; }
+
+.quiz-actions { margin-top: 18px; display: flex; justify-content: flex-end; }
+.quiz-next {
+  border: none;
+  border-radius: var(--radius);
+  padding: 13px 26px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: var(--grad-primary);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(108, 92, 231, 0.35);
+  transition: transform 0.2s var(--ease), filter 0.2s;
+}
+.quiz-next:hover { transform: translateY(-2px); filter: brightness(1.05); }
+
+/* Quiz özeti */
+.quiz-summary { text-align: center; }
+.quiz-summary-emoji { font-size: 4rem; animation: bob 2s ease-in-out infinite; }
+.quiz-summary-title { margin: 8px 0; font-size: 1.5rem; font-weight: 900; }
+.quiz-summary-score { font-size: 1.2rem; font-weight: 800; }
+.quiz-summary-percent { color: var(--c-primary); }
+.quiz-summary-msg { color: var(--c-text-soft); margin: 10px 0 22px; }
+.quiz-summary-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.quiz-retry, .quiz-new {
+  border: none;
+  border-radius: var(--radius);
+  padding: 13px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), filter 0.2s;
+}
+.quiz-retry { background: #eef0fb; color: var(--c-text); }
+.quiz-new { background: var(--grad-primary); color: #fff; }
+.quiz-retry:hover, .quiz-new:hover { transform: translateY(-2px); }
+
+.quiz-error { text-align: center; padding: 28px; color: var(--c-danger); font-weight: 600; }
+.hw-error { text-align: center; padding: 28px; color: var(--c-danger); font-weight: 600; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 600px) {
@@ -564,6 +878,8 @@ a { color: var(--c-primary-dark); }
   .settings-field { flex-direction: column; }
   .tab-btn { min-width: 0; flex: 1 1 45%; }
   .workspace-head { justify-content: center; text-align: center; }
+  .tasks-board { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .task-card { height: 180px; }
 }
 
 /* Hareket azaltma tercihi */
